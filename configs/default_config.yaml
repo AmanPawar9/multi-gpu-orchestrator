@@ -1,0 +1,81 @@
+# ============================================================
+# Autonomous Multi-GPU Experiment Orchestrator - Default Config
+# ============================================================
+
+experiment:
+  name: "transformer_300m"
+  output_dir: "./outputs"
+  log_dir: "./logs"
+  seed: 42
+  max_retries: 5            # max automatic requeues before giving up
+  poll_interval_sec: 10     # how often orchestrator checks metrics
+
+# --- Model ---
+model:
+  type: "transformer_encoder"
+  hidden_size: 1024
+  num_layers: 18
+  num_heads: 16
+  intermediate_size: 4096
+  vocab_size: 30522         # BERT tokenizer vocab
+  max_seq_length: 512
+  dropout: 0.1
+
+# --- Training ---
+training:
+  initial_batch_size: 32    # per-GPU micro batch size
+  min_batch_size: 4
+  max_batch_size: 128
+  gradient_accumulation_steps: 4
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  warmup_steps: 1000
+  max_steps: 50000
+  fp16: true
+  log_interval: 50
+  eval_interval: 500
+  save_interval: 1000
+
+# --- DeepSpeed / ZeRO ---
+deepspeed:
+  initial_zero_stage: 2
+  min_zero_stage: 0
+  max_zero_stage: 3
+  activation_checkpointing: true
+  cpu_offload: false        # auto-enabled if ZeRO-3 + OOM
+
+# --- GPU Thresholds (for rule-based controller) ---
+gpu_thresholds:
+  memory_warn_pct: 85.0     # warn when GPU mem > 85%
+  memory_critical_pct: 93.0  # reduce batch / enable checkpointing > 93%
+  memory_oom_pct: 97.0       # treat as imminent OOM > 97%
+  util_low_pct: 30.0         # GPU underutilised < 30%
+  util_target_pct: 80.0      # target GPU utilisation
+  temp_warn_c: 80            # thermal throttling warning
+  temp_critical_c: 88        # reduce workload if temperature > 88C
+
+# --- SLURM ---
+slurm:
+  enabled: false             # set true if SLURM available
+  partition: "gpu"
+  nodes: 1
+  gpus_per_node: 4
+  cpus_per_gpu: 4
+  mem_per_gpu: "32G"
+  time_limit: "24:00:00"
+  account: null
+  qos: null
+
+# --- Docker ---
+docker:
+  enabled: false
+  image: "nvcr.io/nvidia/pytorch:24.01-py3"
+  shm_size: "16g"
+  runtime: "nvidia"
+
+# --- Benchmarking ---
+benchmark:
+  enabled: true
+  warmup_steps: 20
+  measure_steps: 100
+  gpu_counts: [1, 2, 4]     # scaling test configs
